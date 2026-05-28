@@ -1,26 +1,26 @@
 M. Lejay:
 E. Malavelle:
-S. Potin:
+S. Potin: Garonne
 H. Pommiers:
 Q. Joussain:
 D. Leculier:
 J. Astrongatt:
-C. Cazenave:
+C. Cazenave: Garonne
 I. De Boisset:
 L. Touya:
-C. Destremau:
+C. Destremau: Cardiogériatrie
 A. Kadhel:
 L. Boureaux:
 J. Silo:
-M. Carriou:
+M. Carriou: Soins palliatifs
 V. Bannholtzer:
 I. Aithamoudi:
 P. Lorette: PUG RANGUEIL
 E. Renucci:
-E. Nicolas:
+E. Nicolas: Oncogériatrie
 B. Guyot:
 C. Petureau:
-Y. Esteves:
+Y. Esteves: PUG Purpan
 I. Taha:
 G. Gillodes:
 M. Belhomme De Franqueville:
@@ -30,10 +30,10 @@ S. Kassou:
 R. Pettes:
 A. Kielholz:
 J. Peyres:
-M. Gratesac:
+M. Gratesac: PUG Purpan
 C. Gorra:
 C. Vasseur:
-T. Bourot:
+T. Bourot: PUG Purpan
 V. Simionesco:
 S. Jaouen:
 C. Vert:
