@@ -15,15 +15,15 @@ J. Silo:
 M. Carriou: Soins palliatifs
 V. Bannholtzer:
 I. Aithamoudi:
-P. Lorette: PUG RANGUEIL
-E. Renucci:
+P. Lorette: PUG Rangueil 
+E. Renucci: PUG Rangueil
 E. Nicolas: Oncogériatrie
 B. Guyot:
 C. Petureau:
 Y. Esteves: PUG Purpan
 I. Taha:
 G. Gillodes:
-M. Belhomme De Franqueville:
+M. Belhomme De Franqueville: Aux urgences
 E. Salgues:
 E. Villedieu:
 S. Kassou:
@@ -31,14 +31,14 @@ R. Pettes:
 A. Kielholz:
 J. Peyres:
 M. Gratesac: PUG Purpan
-C. Gorra:
-C. Vasseur:
+C. Gorra: PUG Rangueil
+C. Vasseur: Aux urgences
 T. Bourot: PUG Purpan
 V. Simionesco:
 S. Jaouen:
-C. Vert:
+C. Vert: Commence en aout 
 C. Chauvin:
 M. Bousquet:
 M. Ajlani:
-P. Chretien:
-P. Messina:
+P. Chretien: PUG Rangueil 
+P. Messina: Aux urgences
