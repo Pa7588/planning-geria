@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime, date, timedelta
 import re
 import json
+import os
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -22,10 +23,6 @@ CIBLES = [
 PLANNINGS = {
     "geriatrie": "https://app.planning.lifen.health/external/plannings/55ed4e1c59041a69a363",
 }
-
-GITHUB_TOKEN = "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"
-GITHUB_REPO  = "Pa7588/planning-geria"
-GITHUB_FILE  = "commentaires.txt"
 
 MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin",
            "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
@@ -53,6 +50,29 @@ JOURS_FERIES = {
 }
 
 DEBUG = True
+
+# ─── COMMENTAIRES ─────────────────────────────────────────────────────────────
+
+def lire_commentaires():
+    """Lit commentaires.txt et retourne un dict nom -> commentaire."""
+    comments = {}
+    path = "commentaires.txt"
+    if not os.path.exists(path):
+        print("  ℹ commentaires.txt non trouvé, pas de commentaires")
+        return comments
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            idx = line.find(":")
+            if idx > 0:
+                nom = line[:idx].strip()
+                com = line[idx+1:].strip()
+                if nom and com:
+                    comments[nom] = com
+    print(f"  ✓ {len(comments)} commentaires chargés")
+    return comments
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -200,14 +220,9 @@ def nom_court(n):
     parts = n.split(". ", 1)
     return parts[1].split()[0] if len(parts) > 1 else n
 
-def generer_html(planning, date_maj):
+def generer_html(planning, date_maj, comments):
     today = date.today()
-
-    # Valeurs Python injectées proprement dans le JS
-    gh_token = GITHUB_TOKEN
-    gh_repo  = GITHUB_REPO
-    gh_file  = GITHUB_FILE
-    cibles_json = json.dumps(CIBLES, ensure_ascii=False)
+    cibles_avec_comment = json.dumps(list(comments.keys()), ensure_ascii=False)
 
     legende_html = "".join(
         f'<span class="leg-item" style="{couleur_css(c)}">{COULEURS[c][2]}</span>'
@@ -247,10 +262,13 @@ def generer_html(planning, date_maj):
                 label = " + ".join(cell["postes"]) if cell["postes"] else "Libre"
                 prenom = nom_court(nom)
                 nom_attr = nom.replace('"', '&quot;')
+                comment = comments.get(nom, "")
+                comment_html = f'<span class="slot-comment">{comment}</span>' if comment else ''
                 slots += (
-                    f'<div class="slot" data-nom="{nom_attr}" style="{couleur_css(c)}" title="{nom_attr} — {label}">'
+                    f'<div class="slot" data-nom="{nom_attr}" data-has-comment="{"1" if comment else "0"}" '
+                    f'style="{couleur_css(c)}" title="{nom_attr} — {label}">'
                     f'<span class="slot-name">{prenom}</span>'
-                    f'<span class="slot-comment" data-nom="{nom_attr}"></span>'
+                    f'{comment_html}'
                     f'<span class="slot-poste">{label}</span></div>'
                 )
             we_class    = " weekend" if is_we else ""
@@ -283,7 +301,6 @@ def generer_html(planning, date_maj):
         (m for m in MOIS_FR if _a_donnees(m)), MOIS_FR[0]
     )
 
-    # On construit le HTML avec les vraies valeurs Python (pas de f-string imbriquées)
     html = """<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -327,29 +344,11 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
 .day-cell.today .day-num { color:var(--today); font-weight:700; }
 .today-badge { font-size:0.5rem; background:var(--today); color:white; padding:1px 4px; border-radius:3px; text-transform:uppercase; }
 .ferie-badge { font-size:0.5rem; background:#b45309; color:white; padding:1px 4px; border-radius:3px; text-transform:uppercase; }
-.slot { border-radius:4px; padding:3px 5px; margin-bottom:3px; font-size:0.62rem; display:flex; flex-direction:column; gap:1px; line-height:1.3; cursor:pointer; }
+.slot { border-radius:4px; padding:3px 5px; margin-bottom:3px; font-size:0.62rem; display:flex; flex-direction:column; gap:1px; line-height:1.3; }
 .slot.hidden { display:none; }
 .slot-name { font-weight:500; }
 .slot-comment { font-size:0.58rem; font-style:italic; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.slot-comment:empty { display:none; }
 .slot-poste { opacity:0.75; font-size:0.56rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.comment-panel { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; z-index:200; width:320px; box-shadow:0 20px 60px rgba(0,0,0,0.6); }
-.comment-panel.open { display:block; }
-.comment-panel h3 { font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; margin-bottom:4px; }
-.comment-panel .subtitle { font-size:0.65rem; color:var(--text-dim); margin-bottom:16px; }
-.comment-panel textarea { width:100%; background:#0f1117; border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.8rem; padding:10px; resize:none; height:80px; outline:none; }
-.comment-panel textarea:focus { border-color:var(--accent); }
-.comment-char { font-size:0.6rem; color:var(--text-dim); text-align:right; margin-top:4px; margin-bottom:12px; }
-.comment-actions { display:flex; gap:8px; justify-content:flex-end; }
-.btn-save { font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 16px; background:var(--accent); color:white; border:none; border-radius:6px; cursor:pointer; }
-.btn-save:hover { opacity:0.85; }
-.btn-cancel { font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 16px; background:transparent; color:var(--text-dim); border:1px solid var(--border); border-radius:6px; cursor:pointer; }
-.btn-delete { font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 12px; background:transparent; color:#e87070; border:1px solid #7f1d1d; border-radius:6px; cursor:pointer; margin-right:auto; }
-.save-status { font-size:0.65rem; text-align:center; margin-top:10px; min-height:16px; }
-.save-status.ok { color:#6bcf8f; }
-.save-status.err { color:#e87070; }
-.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:199; }
-.overlay.open { display:block; }
 @media (max-width:900px) {
   .header,.legende,.tabs,.content { padding-left:16px; padding-right:16px; }
   .header h1 { font-size:1.4rem; }
@@ -357,24 +356,10 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
   .day-cell { padding:3px; min-height:90px; }
   .slot { font-size:0.55rem; }
   .slot-poste { display:none; }
-  .comment-panel { width:90vw; }
 }
 </style>
 </head>
 <body>
-<div class="overlay" id="overlay" onclick="closeComment()"></div>
-<div class="comment-panel" id="commentPanel">
-  <h3 id="panelNom"></h3>
-  <div class="subtitle">Clic sur un slot pour modifier · max 40 caractères</div>
-  <textarea id="panelTextarea" maxlength="40" placeholder="Ex: Bonne garde, motivé..." oninput="updateChar()"></textarea>
-  <div class="comment-char"><span id="charCount">0</span>/40</div>
-  <div class="comment-actions">
-    <button class="btn-delete" onclick="deleteComment()">Supprimer</button>
-    <button class="btn-cancel" onclick="closeComment()">Annuler</button>
-    <button class="btn-save" onclick="saveComment()">Sauvegarder</button>
-  </div>
-  <div class="save-status" id="saveStatus"></div>
-</div>
 <div class="header">
   <h1>Planning Gériatrie</h1>
   <div class="header-right">
@@ -386,114 +371,7 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
 <div class="tabs">""" + mois_tabs + """</div>
 <div class="content">""" + mois_sections + """</div>
 <script>
-const GITHUB_TOKEN = '""" + gh_token + """';
-const GITHUB_REPO  = '""" + gh_repo + """';
-const GITHUB_FILE  = '""" + gh_file + """';
-const CIBLES = """ + cibles_json + """;
-
-let comments = {};
-let fileSha = null;
 let filterActive = false;
-let currentNom = null;
-
-async function loadComments() {
-  try {
-    const r = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`,
-      { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
-    );
-    if (r.status === 404) { comments = {}; fileSha = null; applyComments(); return; }
-    const data = await r.json();
-    fileSha = data.sha;
-    const txt = atob(data.content.replace(/\\n/g, ''));
-    comments = {};
-    txt.split('\\n').forEach(line => {
-      const idx = line.indexOf(':');
-      if (idx > 0) {
-        const nom = line.substring(0, idx).trim();
-        const com = line.substring(idx + 1).trim();
-        if (nom && com) comments[nom] = com;
-      }
-    });
-    applyComments();
-  } catch(e) { console.error('Erreur chargement', e); }
-}
-
-function applyComments() {
-  document.querySelectorAll('.slot-comment').forEach(el => {
-    el.textContent = comments[el.dataset.nom] || '';
-  });
-  applyFilter();
-}
-
-async function saveToGithub() {
-  const lines = Object.entries(comments)
-    .filter(([,v]) => v.trim())
-    .map(([k,v]) => `${k}:${v}`)
-    .join('\\n');
-  const content = btoa(unescape(encodeURIComponent(lines)));
-  const body = { message: 'Commentaires mis a jour', content };
-  if (fileSha) body.sha = fileSha;
-  const r = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`,
-    {
-      method: 'PUT',
-      headers: { Authorization: `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }
-  );
-  const data = await r.json();
-  if (data.content) fileSha = data.content.sha;
-  return r.ok;
-}
-
-function openComment(nom) {
-  currentNom = nom;
-  document.getElementById('panelNom').textContent = nom;
-  const ta = document.getElementById('panelTextarea');
-  ta.value = comments[nom] || '';
-  updateChar();
-  document.getElementById('saveStatus').textContent = '';
-  document.getElementById('commentPanel').classList.add('open');
-  document.getElementById('overlay').classList.add('open');
-  ta.focus();
-}
-
-function closeComment() {
-  document.getElementById('commentPanel').classList.remove('open');
-  document.getElementById('overlay').classList.remove('open');
-  currentNom = null;
-}
-
-function updateChar() {
-  document.getElementById('charCount').textContent = document.getElementById('panelTextarea').value.length;
-}
-
-async function saveComment() {
-  const val = document.getElementById('panelTextarea').value.trim();
-  const status = document.getElementById('saveStatus');
-  status.textContent = 'Sauvegarde...';
-  status.className = 'save-status';
-  if (val) comments[currentNom] = val;
-  else delete comments[currentNom];
-  applyComments();
-  const ok = await saveToGithub();
-  if (ok) {
-    status.textContent = '✓ Sauvegarde !';
-    status.className = 'save-status ok';
-    setTimeout(closeComment, 800);
-  } else {
-    status.textContent = '✗ Erreur - reessaie';
-    status.className = 'save-status err';
-  }
-}
-
-async function deleteComment() {
-  delete comments[currentNom];
-  applyComments();
-  await saveToGithub();
-  closeComment();
-}
 
 function toggleFilter() {
   filterActive = !filterActive;
@@ -503,14 +381,10 @@ function toggleFilter() {
 
 function applyFilter() {
   document.querySelectorAll('.slot').forEach(s => {
-    if (filterActive) s.classList.toggle('hidden', !comments[s.dataset.nom]);
+    if (filterActive) s.classList.toggle('hidden', s.dataset.hasComment !== '1');
     else s.classList.remove('hidden');
   });
 }
-
-document.querySelectorAll('.slot').forEach(s => {
-  s.addEventListener('click', () => openComment(s.dataset.nom));
-});
 
 function showMonth(m) {
   document.querySelectorAll('.month-section').forEach(el => el.style.display='none');
@@ -524,7 +398,6 @@ function showMonth(m) {
 
 const savedMois = localStorage.getItem('planning_mois');
 showMonth(savedMois || '""" + mois_defaut + """');
-loadComments();
 </script>
 </body>
 </html>"""
@@ -535,6 +408,8 @@ loadComments();
 
 def main():
     print("Génération du planning gériatrie...")
+    comments = lire_commentaires()
+
     toutes_entrees = []
     for nom, url in PLANNINGS.items():
         print(f"  -> Fetch {nom}...")
@@ -544,18 +419,12 @@ def main():
         print(f"     {len(entrees)} entrees, dont {len(cibles)} pour les cibles")
         toutes_entrees.extend(entrees)
 
-    print(f"\n  Total : {len(toutes_entrees)} entrees")
-    for nom in CIBLES:
-        n = sum(1 for e in toutes_entrees if e["personne"] == nom)
-        if n > 0:
-            print(f"    {nom}: {n} entrees")
-
     planning = construire_planning(toutes_entrees)
     date_maj = datetime.now().strftime("%d/%m/%Y a %H:%M")
-    html = generer_html(planning, date_maj)
+    html = generer_html(planning, date_maj, comments)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"\nindex.html genere ({len(html)//1024} Ko)")
+    print(f"index.html genere ({len(html)//1024} Ko)")
 
 if __name__ == "__main__":
     main()
