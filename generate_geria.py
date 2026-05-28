@@ -23,7 +23,7 @@ PLANNINGS = {
     "geriatrie": "https://app.planning.lifen.health/external/plannings/55ed4e1c59041a69a363",
 }
 
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = "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"
 GITHUB_REPO  = "Pa7588/planning-geria"
 GITHUB_FILE  = "commentaires.txt"
 
@@ -56,8 +56,8 @@ DEBUG = True
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-def est_ferie(d):       return d in JOURS_FERIES
-def est_samedi(d):      return d.weekday() == 5
+def est_ferie(d):        return d in JOURS_FERIES
+def est_samedi(d):       return d.weekday() == 5
 def est_dim_ou_ferie(d): return d.weekday() == 6 or est_ferie(d)
 
 def categoriser_geria(poste, jour_date):
@@ -166,7 +166,6 @@ def construire_planning(toutes_entrees):
             if poste not in cell["postes"]:
                 cell["postes"].append(poste)
                 cell["couleur"] = "orange"
-        # Repos lendemain toujours
         d_l = jour_date + timedelta(days=1)
         m_l = MOIS_FR[d_l.month - 1]
         j_l = d_l.day
@@ -203,6 +202,12 @@ def nom_court(n):
 
 def generer_html(planning, date_maj):
     today = date.today()
+
+    # Valeurs Python injectées proprement dans le JS
+    gh_token = GITHUB_TOKEN
+    gh_repo  = GITHUB_REPO
+    gh_file  = GITHUB_FILE
+    cibles_json = json.dumps(CIBLES, ensure_ascii=False)
 
     legende_html = "".join(
         f'<span class="leg-item" style="{couleur_css(c)}">{COULEURS[c][2]}</span>'
@@ -251,14 +256,14 @@ def generer_html(planning, date_maj):
             we_class    = " weekend" if is_we else ""
             ferie_class = " ferie"   if is_ferie else ""
             today_class = " today"   if is_today else ""
-            today_badge = '<span class="today-badge">Aujourd\'hui</span>' if is_today else ""
-            ferie_badge = '<span class="ferie-badge">JF</span>' if is_ferie else ""
+            today_badge = "<span class='today-badge'>Aujourd'hui</span>" if is_today else ""
+            ferie_badge = "<span class='ferie-badge'>JF</span>" if is_ferie else ""
             jours_html += (
                 f'<div class="day-cell{we_class}{ferie_class}{today_class}">'
                 f'<div class="day-num">{d}{ferie_badge}{today_badge}</div>{slots}</div>'
             )
         badge = "" if a_donnees else ' <span class="no-data">Pas de données</span>'
-        mois_sections += f'''
+        mois_sections += f"""
         <div class="month-section" id="month-{mois}" style="display:none">
             <h2>{mois} 2026{badge}</h2>
             <div class="week-headers">
@@ -267,7 +272,7 @@ def generer_html(planning, date_maj):
                 <div class="we-h">Sam</div><div class="we-h">Dim</div>
             </div>
             <div class="cal-grid">{jours_html}</div>
-        </div>'''
+        </div>"""
 
     def _a_donnees(m):
         nb_j = nb_jours_mois(m)
@@ -278,9 +283,8 @@ def generer_html(planning, date_maj):
         (m for m in MOIS_FR if _a_donnees(m)), MOIS_FR[0]
     )
 
-    cibles_json = json.dumps(CIBLES, ensure_ascii=False)
-
-    return f'''<!DOCTYPE html>
+    # On construit le HTML avec les vraies valeurs Python (pas de f-string imbriquées)
+    html = """<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -289,84 +293,79 @@ def generer_html(planning, date_maj):
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
-:root {{ --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a; --text:#e8eaf0; --text-dim:#6b7280; --accent:#4f8ef7; --radius:8px; --today:#4f8ef7; }}
-* {{ box-sizing:border-box; margin:0; padding:0; }}
-body {{ font-family:'DM Mono',monospace; background:var(--bg); color:var(--text); min-height:100vh; }}
-.header {{ padding:24px 40px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-wrap:wrap; }}
-.header h1 {{ font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; letter-spacing:-0.02em; flex:1; min-width:120px; }}
-.header-right {{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }}
-.maj-badge {{ font-size:0.7rem; color:var(--text-dim); background:var(--surface); border:1px solid var(--border); padding:4px 10px; border-radius:20px; white-space:nowrap; }}
-.toggle-btn {{ font-family:'DM Mono',monospace; font-size:0.7rem; padding:6px 14px; border:1px solid var(--border); border-radius:20px; background:transparent; color:var(--text-dim); cursor:pointer; transition:all 0.15s; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }}
-.toggle-btn:hover {{ color:var(--text); border-color:var(--accent); }}
-.toggle-btn.active {{ background:var(--accent); color:white; border-color:var(--accent); }}
-.legende {{ padding:12px 40px; display:flex; gap:8px; flex-wrap:wrap; border-bottom:1px solid var(--border); }}
-.leg-item {{ font-size:0.65rem; padding:3px 8px; border-radius:4px; font-weight:500; letter-spacing:0.05em; text-transform:uppercase; }}
-.tabs {{ padding:12px 40px; display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }}
-.tab-btn {{ font-family:'DM Mono',monospace; font-size:0.7rem; padding:6px 14px; border:1px solid var(--border); border-radius:20px; background:transparent; color:var(--text-dim); cursor:pointer; transition:all 0.15s; text-transform:uppercase; letter-spacing:0.08em; }}
-.tab-btn:hover {{ color:var(--text); border-color:var(--accent); }}
-.tab-btn.active {{ background:var(--accent); color:white; border-color:var(--accent); }}
-.content {{ padding:24px 40px 60px; }}
-.month-section h2 {{ font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:12px; }}
-.no-data {{ font-size:0.65rem; color:var(--text-dim); background:var(--surface); border:1px solid var(--border); padding:3px 8px; border-radius:4px; }}
-.week-headers {{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }}
-.week-headers div {{ text-align:center; font-size:0.65rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em; padding:4px; }}
-.week-headers .we-h {{ color:#6366f1; }}
-.cal-grid {{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }}
-.day-cell {{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:6px; min-height:120px; }}
-.day-cell.empty {{ background:transparent; border-color:transparent; }}
-.day-cell.weekend {{ border-color:#2a2d4a; background:#1a1d30; }}
-.day-cell.ferie {{ border-color:#b45309; background:#1c1508; }}
-.day-cell.today {{ border:2px solid var(--today); box-shadow:0 0 8px #4f8ef733; }}
-.day-num {{ font-size:0.7rem; font-weight:500; color:var(--text-dim); margin-bottom:4px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; }}
-.day-cell.weekend .day-num {{ color:#6366f1; }}
-.day-cell.ferie .day-num {{ color:#f59e0b; }}
-.day-cell.today .day-num {{ color:var(--today); font-weight:700; }}
-.today-badge {{ font-size:0.5rem; background:var(--today); color:white; padding:1px 4px; border-radius:3px; text-transform:uppercase; }}
-.ferie-badge {{ font-size:0.5rem; background:#b45309; color:white; padding:1px 4px; border-radius:3px; text-transform:uppercase; }}
-.slot {{ border-radius:4px; padding:3px 5px; margin-bottom:3px; font-size:0.62rem; display:flex; flex-direction:column; gap:1px; line-height:1.3; cursor:pointer; position:relative; }}
-.slot.hidden {{ display:none; }}
-.slot-name {{ font-weight:500; }}
-.slot-comment {{ font-size:0.58rem; font-style:italic; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:0; }}
-.slot-comment:empty {{ display:none; }}
-.slot-poste {{ opacity:0.75; font-size:0.56rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
-
-/* Panneau commentaire */
-.comment-panel {{ display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; z-index:200; width:320px; box-shadow:0 20px 60px rgba(0,0,0,0.6); }}
-.comment-panel.open {{ display:block; }}
-.comment-panel h3 {{ font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; margin-bottom:4px; }}
-.comment-panel .subtitle {{ font-size:0.65rem; color:var(--text-dim); margin-bottom:16px; }}
-.comment-panel textarea {{ width:100%; background:#0f1117; border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.8rem; padding:10px; resize:none; height:80px; outline:none; }}
-.comment-panel textarea:focus {{ border-color:var(--accent); }}
-.comment-char {{ font-size:0.6rem; color:var(--text-dim); text-align:right; margin-top:4px; margin-bottom:12px; }}
-.comment-actions {{ display:flex; gap:8px; justify-content:flex-end; }}
-.btn-save {{ font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 16px; background:var(--accent); color:white; border:none; border-radius:6px; cursor:pointer; }}
-.btn-save:hover {{ opacity:0.85; }}
-.btn-cancel {{ font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 16px; background:transparent; color:var(--text-dim); border:1px solid var(--border); border-radius:6px; cursor:pointer; }}
-.btn-cancel:hover {{ color:var(--text); }}
-.btn-delete {{ font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 12px; background:transparent; color:#e87070; border:1px solid #7f1d1d; border-radius:6px; cursor:pointer; margin-right:auto; }}
-.save-status {{ font-size:0.65rem; text-align:center; margin-top:10px; min-height:16px; }}
-.save-status.ok {{ color:#6bcf8f; }}
-.save-status.err {{ color:#e87070; }}
-.overlay {{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:199; }}
-.overlay.open {{ display:block; }}
-@media (max-width:900px) {{
-  .header,.legende,.tabs,.content {{ padding-left:16px; padding-right:16px; }}
-  .header h1 {{ font-size:1.4rem; }}
-  .cal-grid {{ grid-template-columns:repeat(7,minmax(0,1fr)); gap:2px; }}
-  .day-cell {{ padding:3px; min-height:90px; }}
-  .slot {{ font-size:0.55rem; }}
-  .slot-poste {{ display:none; }}
-  .comment-panel {{ width:90vw; }}
-}}
+:root { --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a; --text:#e8eaf0; --text-dim:#6b7280; --accent:#4f8ef7; --radius:8px; --today:#4f8ef7; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text); min-height:100vh; }
+.header { padding:24px 40px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.header h1 { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; letter-spacing:-0.02em; flex:1; min-width:120px; }
+.header-right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.maj-badge { font-size:0.7rem; color:var(--text-dim); background:var(--surface); border:1px solid var(--border); padding:4px 10px; border-radius:20px; white-space:nowrap; }
+.toggle-btn { font-family:'DM Mono',monospace; font-size:0.7rem; padding:6px 14px; border:1px solid var(--border); border-radius:20px; background:transparent; color:var(--text-dim); cursor:pointer; transition:all 0.15s; text-transform:uppercase; letter-spacing:0.08em; white-space:nowrap; }
+.toggle-btn:hover { color:var(--text); border-color:var(--accent); }
+.toggle-btn.active { background:var(--accent); color:white; border-color:var(--accent); }
+.legende { padding:12px 40px; display:flex; gap:8px; flex-wrap:wrap; border-bottom:1px solid var(--border); }
+.leg-item { font-size:0.65rem; padding:3px 8px; border-radius:4px; font-weight:500; letter-spacing:0.05em; text-transform:uppercase; }
+.tabs { padding:12px 40px; display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg); z-index:10; }
+.tab-btn { font-family:'DM Mono',monospace; font-size:0.7rem; padding:6px 14px; border:1px solid var(--border); border-radius:20px; background:transparent; color:var(--text-dim); cursor:pointer; transition:all 0.15s; text-transform:uppercase; letter-spacing:0.08em; }
+.tab-btn:hover { color:var(--text); border-color:var(--accent); }
+.tab-btn.active { background:var(--accent); color:white; border-color:var(--accent); }
+.content { padding:24px 40px 60px; }
+.month-section h2 { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:12px; }
+.no-data { font-size:0.65rem; color:var(--text-dim); background:var(--surface); border:1px solid var(--border); padding:3px 8px; border-radius:4px; }
+.week-headers { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
+.week-headers div { text-align:center; font-size:0.65rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em; padding:4px; }
+.week-headers .we-h { color:#6366f1; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.day-cell { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:6px; min-height:120px; }
+.day-cell.empty { background:transparent; border-color:transparent; }
+.day-cell.weekend { border-color:#2a2d4a; background:#1a1d30; }
+.day-cell.ferie { border-color:#b45309; background:#1c1508; }
+.day-cell.today { border:2px solid var(--today); box-shadow:0 0 8px #4f8ef733; }
+.day-num { font-size:0.7rem; font-weight:500; color:var(--text-dim); margin-bottom:4px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+.day-cell.weekend .day-num { color:#6366f1; }
+.day-cell.ferie .day-num { color:#f59e0b; }
+.day-cell.today .day-num { color:var(--today); font-weight:700; }
+.today-badge { font-size:0.5rem; background:var(--today); color:white; padding:1px 4px; border-radius:3px; text-transform:uppercase; }
+.ferie-badge { font-size:0.5rem; background:#b45309; color:white; padding:1px 4px; border-radius:3px; text-transform:uppercase; }
+.slot { border-radius:4px; padding:3px 5px; margin-bottom:3px; font-size:0.62rem; display:flex; flex-direction:column; gap:1px; line-height:1.3; cursor:pointer; }
+.slot.hidden { display:none; }
+.slot-name { font-weight:500; }
+.slot-comment { font-size:0.58rem; font-style:italic; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.slot-comment:empty { display:none; }
+.slot-poste { opacity:0.75; font-size:0.56rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.comment-panel { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; z-index:200; width:320px; box-shadow:0 20px 60px rgba(0,0,0,0.6); }
+.comment-panel.open { display:block; }
+.comment-panel h3 { font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; margin-bottom:4px; }
+.comment-panel .subtitle { font-size:0.65rem; color:var(--text-dim); margin-bottom:16px; }
+.comment-panel textarea { width:100%; background:#0f1117; border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'DM Mono',monospace; font-size:0.8rem; padding:10px; resize:none; height:80px; outline:none; }
+.comment-panel textarea:focus { border-color:var(--accent); }
+.comment-char { font-size:0.6rem; color:var(--text-dim); text-align:right; margin-top:4px; margin-bottom:12px; }
+.comment-actions { display:flex; gap:8px; justify-content:flex-end; }
+.btn-save { font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 16px; background:var(--accent); color:white; border:none; border-radius:6px; cursor:pointer; }
+.btn-save:hover { opacity:0.85; }
+.btn-cancel { font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 16px; background:transparent; color:var(--text-dim); border:1px solid var(--border); border-radius:6px; cursor:pointer; }
+.btn-delete { font-family:'DM Mono',monospace; font-size:0.7rem; padding:7px 12px; background:transparent; color:#e87070; border:1px solid #7f1d1d; border-radius:6px; cursor:pointer; margin-right:auto; }
+.save-status { font-size:0.65rem; text-align:center; margin-top:10px; min-height:16px; }
+.save-status.ok { color:#6bcf8f; }
+.save-status.err { color:#e87070; }
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:199; }
+.overlay.open { display:block; }
+@media (max-width:900px) {
+  .header,.legende,.tabs,.content { padding-left:16px; padding-right:16px; }
+  .header h1 { font-size:1.4rem; }
+  .cal-grid { grid-template-columns:repeat(7,minmax(0,1fr)); gap:2px; }
+  .day-cell { padding:3px; min-height:90px; }
+  .slot { font-size:0.55rem; }
+  .slot-poste { display:none; }
+  .comment-panel { width:90vw; }
+}
 </style>
 </head>
 <body>
-
 <div class="overlay" id="overlay" onclick="closeComment()"></div>
-
 <div class="comment-panel" id="commentPanel">
   <h3 id="panelNom"></h3>
-  <div class="subtitle">Clique sur le slot pour modifier · max 40 caractères</div>
+  <div class="subtitle">Clic sur un slot pour modifier · max 40 caractères</div>
   <textarea id="panelTextarea" maxlength="40" placeholder="Ex: Bonne garde, motivé..." oninput="updateChar()"></textarea>
   <div class="comment-char"><span id="charCount">0</span>/40</div>
   <div class="comment-actions">
@@ -376,88 +375,79 @@ body {{ font-family:'DM Mono',monospace; background:var(--bg); color:var(--text)
   </div>
   <div class="save-status" id="saveStatus"></div>
 </div>
-
 <div class="header">
   <h1>Planning Gériatrie</h1>
   <div class="header-right">
     <button class="toggle-btn" id="btnFilter" onclick="toggleFilter()">Avec commentaire</button>
-    <div class="maj-badge">⟳ Mis à jour le {date_maj}</div>
+    <div class="maj-badge">⟳ Mis à jour le """ + date_maj + """</div>
   </div>
 </div>
-
-<div class="legende">{legende_html}</div>
-<div class="tabs">{mois_tabs}</div>
-<div class="content">{mois_sections}</div>
-
+<div class="legende">""" + legende_html + """</div>
+<div class="tabs">""" + mois_tabs + """</div>
+<div class="content">""" + mois_sections + """</div>
 <script>
-const GITHUB_TOKEN = "{GITHUB_TOKEN}";
-const GITHUB_REPO  = "{GITHUB_REPO}";
-const GITHUB_FILE  = "{GITHUB_FILE}";
-const CIBLES = {cibles_json};
+const GITHUB_TOKEN = '""" + gh_token + """';
+const GITHUB_REPO  = '""" + gh_repo + """';
+const GITHUB_FILE  = '""" + gh_file + """';
+const CIBLES = """ + cibles_json + """;
 
-// ── Commentaires ──────────────────────────────────────────────────────────────
-let comments = {{}};  // nom → texte
-let fileSha = null;   // SHA du fichier GitHub pour le update
+let comments = {};
+let fileSha = null;
 let filterActive = false;
 let currentNom = null;
 
-async function loadComments() {{
-  try {{
+async function loadComments() {
+  try {
     const r = await fetch(
-      `https://api.github.com/repos/${{GITHUB_REPO}}/contents/${{GITHUB_FILE}}`,
-      {{ headers: {{ Authorization: `token ${{GITHUB_TOKEN}}` }} }}
+      `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`,
+      { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
     );
-    if (r.status === 404) {{ comments = {{}}; fileSha = null; applyComments(); return; }}
+    if (r.status === 404) { comments = {}; fileSha = null; applyComments(); return; }
     const data = await r.json();
     fileSha = data.sha;
     const txt = atob(data.content.replace(/\\n/g, ''));
-    comments = {{}};
-    txt.split('\\n').forEach(line => {{
+    comments = {};
+    txt.split('\\n').forEach(line => {
       const idx = line.indexOf(':');
-      if (idx > 0) {{
+      if (idx > 0) {
         const nom = line.substring(0, idx).trim();
         const com = line.substring(idx + 1).trim();
         if (nom && com) comments[nom] = com;
-      }}
-    }});
+      }
+    });
     applyComments();
-  }} catch(e) {{
-    console.error('Erreur chargement commentaires', e);
-  }}
-}}
+  } catch(e) { console.error('Erreur chargement', e); }
+}
 
-function applyComments() {{
-  document.querySelectorAll('.slot-comment').forEach(el => {{
-    const nom = el.dataset.nom;
-    const c = comments[nom] || '';
-    el.textContent = c;
-  }});
+function applyComments() {
+  document.querySelectorAll('.slot-comment').forEach(el => {
+    el.textContent = comments[el.dataset.nom] || '';
+  });
   applyFilter();
-}}
+}
 
-async function saveToGithub() {{
+async function saveToGithub() {
   const lines = Object.entries(comments)
     .filter(([,v]) => v.trim())
-    .map(([k,v]) => `${{k}}:${{v}}`)
+    .map(([k,v]) => `${k}:${v}`)
     .join('\\n');
   const content = btoa(unescape(encodeURIComponent(lines)));
-  const body = {{ message: 'Commentaires mis à jour', content }};
+  const body = { message: 'Commentaires mis a jour', content };
   if (fileSha) body.sha = fileSha;
   const r = await fetch(
-    `https://api.github.com/repos/${{GITHUB_REPO}}/contents/${{GITHUB_FILE}}`,
-    {{
+    `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`,
+    {
       method: 'PUT',
-      headers: {{ Authorization: `token ${{GITHUB_TOKEN}}`, 'Content-Type': 'application/json' }},
+      headers: { Authorization: `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    }}
+    }
   );
   const data = await r.json();
   if (data.content) fileSha = data.content.sha;
   return r.ok;
-}}
+}
 
-// ── Panneau commentaire ───────────────────────────────────────────────────────
-function openComment(nom) {{
+function openComment(nom) {
   currentNom = nom;
   document.getElementById('panelNom').textContent = nom;
   const ta = document.getElementById('panelTextarea');
@@ -467,20 +457,19 @@ function openComment(nom) {{
   document.getElementById('commentPanel').classList.add('open');
   document.getElementById('overlay').classList.add('open');
   ta.focus();
-}}
+}
 
-function closeComment() {{
+function closeComment() {
   document.getElementById('commentPanel').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
   currentNom = null;
-}}
+}
 
-function updateChar() {{
-  const v = document.getElementById('panelTextarea').value;
-  document.getElementById('charCount').textContent = v.length;
-}}
+function updateChar() {
+  document.getElementById('charCount').textContent = document.getElementById('panelTextarea').value.length;
+}
 
-async function saveComment() {{
+async function saveComment() {
   const val = document.getElementById('panelTextarea').value.trim();
   const status = document.getElementById('saveStatus');
   status.textContent = 'Sauvegarde...';
@@ -489,49 +478,41 @@ async function saveComment() {{
   else delete comments[currentNom];
   applyComments();
   const ok = await saveToGithub();
-  if (ok) {{
-    status.textContent = '✓ Sauvegardé !';
+  if (ok) {
+    status.textContent = '✓ Sauvegarde !';
     status.className = 'save-status ok';
     setTimeout(closeComment, 800);
-  }} else {{
-    status.textContent = '✗ Erreur — réessaie';
+  } else {
+    status.textContent = '✗ Erreur - reessaie';
     status.className = 'save-status err';
-  }}
-}}
+  }
+}
 
-async function deleteComment() {{
+async function deleteComment() {
   delete comments[currentNom];
   applyComments();
   await saveToGithub();
   closeComment();
-}}
+}
 
-// ── Filtre ────────────────────────────────────────────────────────────────────
-function toggleFilter() {{
+function toggleFilter() {
   filterActive = !filterActive;
-  const btn = document.getElementById('btnFilter');
-  btn.classList.toggle('active', filterActive);
+  document.getElementById('btnFilter').classList.toggle('active', filterActive);
   applyFilter();
-}}
+}
 
-function applyFilter() {{
-  document.querySelectorAll('.slot').forEach(s => {{
-    const nom = s.dataset.nom;
-    if (filterActive) {{
-      s.classList.toggle('hidden', !comments[nom]);
-    }} else {{
-      s.classList.remove('hidden');
-    }}
-  }});
-}}
+function applyFilter() {
+  document.querySelectorAll('.slot').forEach(s => {
+    if (filterActive) s.classList.toggle('hidden', !comments[s.dataset.nom]);
+    else s.classList.remove('hidden');
+  });
+}
 
-// ── Clics sur slots ───────────────────────────────────────────────────────────
-document.querySelectorAll('.slot').forEach(s => {{
+document.querySelectorAll('.slot').forEach(s => {
   s.addEventListener('click', () => openComment(s.dataset.nom));
-}});
+});
 
-// ── Mois ──────────────────────────────────────────────────────────────────────
-function showMonth(m) {{
+function showMonth(m) {
   document.querySelectorAll('.month-section').forEach(el => el.style.display='none');
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   const sec = document.getElementById('month-' + m);
@@ -539,40 +520,42 @@ function showMonth(m) {{
   if (sec) sec.style.display = 'block';
   if (btn) btn.classList.add('active');
   localStorage.setItem('planning_mois', m);
-}}
+}
 
 const savedMois = localStorage.getItem('planning_mois');
-showMonth(savedMois || '{mois_defaut}');
+showMonth(savedMois || '""" + mois_defaut + """');
 loadComments();
 </script>
 </body>
-</html>'''
+</html>"""
+
+    return html
 
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
-    print("🏥 Génération du planning gériatrie...")
+    print("Génération du planning gériatrie...")
     toutes_entrees = []
     for nom, url in PLANNINGS.items():
-        print(f"  → Fetch {nom}...")
+        print(f"  -> Fetch {nom}...")
         texte = fetch_planning(nom, url)
         entrees = parse_texte(texte)
         cibles = [e for e in entrees if e["personne"] in CIBLES]
-        print(f"     {len(entrees)} entrées, dont {len(cibles)} pour les cibles")
+        print(f"     {len(entrees)} entrees, dont {len(cibles)} pour les cibles")
         toutes_entrees.extend(entrees)
 
-    print(f"\n  Total : {len(toutes_entrees)} entrées")
+    print(f"\n  Total : {len(toutes_entrees)} entrees")
     for nom in CIBLES:
         n = sum(1 for e in toutes_entrees if e["personne"] == nom)
         if n > 0:
-            print(f"    {nom}: {n} entrées")
+            print(f"    {nom}: {n} entrees")
 
     planning = construire_planning(toutes_entrees)
-    date_maj = datetime.now().strftime("%d/%m/%Y à %H:%M")
+    date_maj = datetime.now().strftime("%d/%m/%Y a %H:%M")
     html = generer_html(planning, date_maj)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"\n✅ index.html généré ({len(html)//1024} Ko)")
+    print(f"\nindex.html genere ({len(html)//1024} Ko)")
 
 if __name__ == "__main__":
     main()
