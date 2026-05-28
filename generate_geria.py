@@ -23,7 +23,7 @@ PLANNINGS = {
     "geriatrie": "https://app.planning.lifen.health/external/plannings/55ed4e1c59041a69a363",
 }
 
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = "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"
 GITHUB_REPO  = "Pa7588/planning-geria"
 GITHUB_FILE  = "commentaires.txt"
 
