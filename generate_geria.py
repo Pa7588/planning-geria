@@ -54,11 +54,10 @@ DEBUG = True
 # ─── COMMENTAIRES ─────────────────────────────────────────────────────────────
 
 def lire_commentaires():
-    """Lit commentaires.txt et retourne un dict nom -> commentaire."""
     comments = {}
     path = "commentaires.txt"
     if not os.path.exists(path):
-        print("  ℹ commentaires.txt non trouvé, pas de commentaires")
+        print("  commentaires.txt non trouve")
         return comments
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
@@ -71,7 +70,7 @@ def lire_commentaires():
                 com = line[idx+1:].strip()
                 if nom and com:
                     comments[nom] = com
-    print(f"  ✓ {len(comments)} commentaires chargés")
+    print(f"  {len(comments)} commentaires charges")
     return comments
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -97,6 +96,12 @@ def est_poste_geria(s):
 def est_nom_personne(s):
     return bool(re.match(r'^[A-Z]\.\s+[A-Z][a-zA-ZÀ-ÿ\s\-]+$', s))
 
+def label_poste(poste, couleur):
+    """Formate le label affiché selon le type."""
+    if couleur == 'jaune-repos':
+        return 'Repos de garde'
+    return f'🔴 Garde : "{poste}"'
+
 # ─── FETCH ────────────────────────────────────────────────────────────────────
 
 def fetch_planning(nom, url):
@@ -111,7 +116,7 @@ def fetch_planning(nom, url):
                 f.write(texte)
         return texte
     except Exception as e:
-        print(f"  ⚠ Erreur fetch {url}: {e}")
+        print(f"  Erreur fetch {url}: {e}")
         return ""
 
 # ─── PARSER ───────────────────────────────────────────────────────────────────
@@ -163,7 +168,7 @@ def construire_planning(toutes_entrees):
         planning[m] = {}
         for d in range(1, 32):
             planning[m][d] = {
-                nom: {"couleur": "vert", "postes": [], "repos": False}
+                nom: {"couleur": "vert", "poste_brut": None, "label": "Libre", "repos": False}
                 for nom in CIBLES
             }
     for e in toutes_entrees:
@@ -176,25 +181,29 @@ def construire_planning(toutes_entrees):
             continue
         cell = planning[mois][jour][nom]
         couleur, type_poste = categoriser_geria(poste, jour_date)
+
         if cell["repos"]:
-            cell["postes"].append(f"⚠ {poste}")
+            cell["label"] = f'🔴 Garde : "{poste}" + repos'
             cell["couleur"] = "orange"
-        elif not cell["postes"]:
+        elif cell["poste_brut"] is None:
             cell["couleur"] = couleur
-            cell["postes"].append(poste)
+            cell["poste_brut"] = poste
+            cell["label"] = label_poste(poste, couleur)
         else:
-            if poste not in cell["postes"]:
-                cell["postes"].append(poste)
-                cell["couleur"] = "orange"
+            cell["label"] = f'🔴 Garde : "{cell["poste_brut"]}" + "{poste}"'
+            cell["couleur"] = "orange"
+
+        # Repos lendemain
         d_l = jour_date + timedelta(days=1)
         m_l = MOIS_FR[d_l.month - 1]
         j_l = d_l.day
         if m_l in planning and j_l in planning[m_l]:
             cell_r = planning[m_l][j_l][nom]
-            if not cell_r["postes"]:
+            if cell_r["poste_brut"] is None and not cell_r["repos"]:
                 cell_r["couleur"] = "jaune-repos"
-                cell_r["postes"].append("Repos de garde")
+                cell_r["label"] = "Repos de garde"
                 cell_r["repos"] = True
+
     return planning
 
 # ─── HTML ─────────────────────────────────────────────────────────────────────
@@ -222,7 +231,6 @@ def nom_court(n):
 
 def generer_html(planning, date_maj, comments):
     today = date.today()
-    cibles_avec_comment = json.dumps(list(comments.keys()), ensure_ascii=False)
 
     legende_html = "".join(
         f'<span class="leg-item" style="{couleur_css(c)}">{COULEURS[c][2]}</span>'
@@ -243,7 +251,7 @@ def generer_html(planning, date_maj, comments):
         decalage = premier.weekday()
         nb_j = nb_jours_mois(mois)
         a_donnees = any(
-            planning[mois][d][n]["postes"]
+            planning[mois][d][n]["poste_brut"]
             for d in range(1, nb_j+1) for n in CIBLES
         )
         jours_html = "".join('<div class="day-cell empty"></div>' for _ in range(decalage))
@@ -259,14 +267,16 @@ def generer_html(planning, date_maj, comments):
             for nom in CIBLES:
                 cell = planning[mois][d][nom]
                 c = cell["couleur"]
-                label = " + ".join(cell["postes"]) if cell["postes"] else "Libre"
+                label = cell["label"]
                 prenom = nom_court(nom)
                 nom_attr = nom.replace('"', '&quot;')
                 comment = comments.get(nom, "")
-                comment_html = f'<span class="slot-comment">{comment}</span>' if comment else ''
+                has_comment = "1" if comment else "0"
+                comment_html = f'<span class="slot-comment">💬 {comment}</span>' if comment else ''
+                label_attr = label.replace('"', '&quot;')
                 slots += (
-                    f'<div class="slot" data-nom="{nom_attr}" data-has-comment="{"1" if comment else "0"}" '
-                    f'style="{couleur_css(c)}" title="{nom_attr} — {label}">'
+                    f'<div class="slot" data-nom="{nom_attr}" data-has-comment="{has_comment}" '
+                    f'style="{couleur_css(c)}" title="{nom_attr} — {label_attr}">'
                     f'<span class="slot-name">{prenom}</span>'
                     f'{comment_html}'
                     f'<span class="slot-poste">{label}</span></div>'
@@ -294,7 +304,7 @@ def generer_html(planning, date_maj, comments):
 
     def _a_donnees(m):
         nb_j = nb_jours_mois(m)
-        return any(planning[m][d][n]["postes"] for d in range(1, nb_j+1) for n in CIBLES)
+        return any(planning[m][d][n]["poste_brut"] for d in range(1, nb_j+1) for n in CIBLES)
 
     mois_courant = MOIS_FR[today.month - 1]
     mois_defaut = mois_courant if _a_donnees(mois_courant) else next(
@@ -363,7 +373,7 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
 <div class="header">
   <h1>Planning Gériatrie</h1>
   <div class="header-right">
-    <button class="toggle-btn" id="btnFilter" onclick="toggleFilter()">Avec commentaire</button>
+    <button class="toggle-btn" id="btnFilter" onclick="toggleFilter()">💬 Avec commentaire</button>
     <div class="maj-badge">⟳ Mis à jour le """ + date_maj + """</div>
   </div>
 </div>
@@ -407,7 +417,7 @@ showMonth(savedMois || '""" + mois_defaut + """');
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
-    print("Génération du planning gériatrie...")
+    print("Generation du planning geriatrie...")
     comments = lire_commentaires()
 
     toutes_entrees = []
