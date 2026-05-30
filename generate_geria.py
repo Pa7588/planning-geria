@@ -412,6 +412,7 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
   <h1>Planning Gériatrie</h1>
   <div class="header-right">
     <button class="toggle-btn" id="btnFilter" onclick="toggleFilter()">💬 Avec commentaire</button>
+    <button class="toggle-btn" id="btnShowComments" onclick="toggleComments()">💬 Masquer notes</button>
     <button class="toggle-btn" onclick="openPanel()">✎ Personnalisé</button>
     <div class="maj-badge">⟳ Mis à jour le """ + date_maj + """</div>
   </div>
@@ -421,6 +422,18 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
 <div class="content">""" + mois_sections + """</div>
 <script>
 let filterActive = false;
+
+let commentsVisible = true;
+
+function toggleComments() {
+  commentsVisible = !commentsVisible;
+  const btn = document.getElementById('btnShowComments');
+  btn.textContent = commentsVisible ? '💬 Masquer notes' : '💬 Afficher notes';
+  btn.classList.toggle('active', !commentsVisible);
+  document.querySelectorAll('.slot-comment').forEach(el => {
+    el.style.display = commentsVisible ? '' : 'none';
+  });
+}
 
 function toggleFilter() {
   filterActive = !filterActive;
@@ -503,7 +516,9 @@ def main():
         toutes_entrees.extend(entrees)
 
     planning = construire_planning(toutes_entrees)
-    date_maj = datetime.now().strftime("%d/%m/%Y a %H:%M")
+    from datetime import timezone
+    tz_paris = timezone(timedelta(hours=2))  # UTC+2 ete
+    date_maj = datetime.now(tz_paris).strftime("%d/%m/%Y a %H:%M")
     html = generer_html(planning, date_maj, comments)
     with open("index.html", "w", encoding="utf-8") as f:
         f.write(html)
