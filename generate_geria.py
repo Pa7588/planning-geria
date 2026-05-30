@@ -311,6 +311,17 @@ def generer_html(planning, date_maj, comments):
         (m for m in MOIS_FR if _a_donnees(m)), MOIS_FR[0]
     )
 
+    # Checkboxes
+    checkboxes_html = ""
+    for nom in CIBLES:
+        sid = re.sub(r'[\s\.\-]', '_', nom)
+        checkboxes_html += (
+            f'<label class="cb-label" for="cb_{sid}">'
+            f'<input type="checkbox" id="cb_{sid}" data-nom="{nom}" checked onchange="applyCustom()">'
+            f'<span>{nom}</span></label>'
+        )
+    cibles_json = json.dumps(CIBLES, ensure_ascii=False)
+
     html = """<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -359,6 +370,20 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
 .slot-name { font-weight:500; }
 .slot-comment { font-size:0.58rem; font-style:italic; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .slot-poste { opacity:0.75; font-size:0.56rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.custom-panel { display:none; position:fixed; top:0; right:0; bottom:0; width:300px; background:var(--surface); border-left:1px solid var(--border); z-index:100; overflow-y:auto; padding:24px; box-shadow:-8px 0 32px rgba(0,0,0,0.4); }
+.custom-panel.open { display:block; }
+.panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.panel-header h3 { font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; }
+.panel-close { background:none; border:none; color:var(--text-dim); font-size:1.2rem; cursor:pointer; padding:4px 8px; border-radius:4px; }
+.panel-close:hover { color:var(--text); background:var(--border); }
+.panel-actions { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+.panel-action-btn { font-family:'DM Mono',monospace; font-size:0.65rem; padding:4px 10px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--text-dim); cursor:pointer; }
+.panel-action-btn:hover { color:var(--text); border-color:var(--accent); }
+.cb-label { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:0.75rem; color:var(--text); transition:background 0.1s; }
+.cb-label:hover { background:var(--border); }
+.cb-label input { accent-color:var(--accent); width:14px; height:14px; cursor:pointer; flex-shrink:0; }
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:99; }
+.overlay.open { display:block; }
 @media (max-width:900px) {
   .header,.legende,.tabs,.content { padding-left:16px; padding-right:16px; }
   .header h1 { font-size:1.4rem; }
@@ -366,14 +391,28 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
   .day-cell { padding:3px; min-height:90px; }
   .slot { font-size:0.55rem; }
   .slot-poste { display:none; }
+  .custom-panel { width:100%; }
 }
 </style>
 </head>
 <body>
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="custom-panel" id="customPanel">
+  <div class="panel-header">
+    <h3>Sélection</h3>
+    <button class="panel-close" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-actions">
+    <button class="panel-action-btn" onclick="selectAll()">Tout cocher</button>
+    <button class="panel-action-btn" onclick="selectNone()">Tout décocher</button>
+  </div>
+  <div id="cbsList">""" + checkboxes_html + """</div>
+</div>
 <div class="header">
   <h1>Planning Gériatrie</h1>
   <div class="header-right">
     <button class="toggle-btn" id="btnFilter" onclick="toggleFilter()">💬 Avec commentaire</button>
+    <button class="toggle-btn" onclick="openPanel()">✎ Personnalisé</button>
     <div class="maj-badge">⟳ Mis à jour le """ + date_maj + """</div>
   </div>
 </div>
@@ -405,6 +444,40 @@ function showMonth(m) {
   if (btn) btn.classList.add('active');
   localStorage.setItem('planning_mois', m);
 }
+
+const CIBLES_ALL = """ + cibles_json + """;
+let customSet = new Set(JSON.parse(localStorage.getItem('planning_custom') || 'null') || CIBLES_ALL);
+
+function applyVisibility(visibleSet) {
+  document.querySelectorAll('.slot').forEach(s => {
+    s.classList.toggle('hidden', !visibleSet.has(s.dataset.nom));
+  });
+}
+
+function applyCustom() {
+  customSet = new Set(
+    [...document.querySelectorAll('#cbsList input[type=checkbox]')]
+      .filter(cb => cb.checked).map(cb => cb.dataset.nom)
+  );
+  localStorage.setItem('planning_custom', JSON.stringify([...customSet]));
+  applyVisibility(customSet);
+}
+
+function openPanel() {
+  document.querySelectorAll('#cbsList input').forEach(cb => {
+    cb.checked = customSet.has(cb.dataset.nom);
+  });
+  document.getElementById('customPanel').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('customPanel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function selectAll()  { document.querySelectorAll('#cbsList input').forEach(cb => cb.checked=true);  applyCustom(); }
+function selectNone() { document.querySelectorAll('#cbsList input').forEach(cb => cb.checked=false); applyCustom(); }
 
 const savedMois = localStorage.getItem('planning_mois');
 showMonth(savedMois || '""" + mois_defaut + """');
