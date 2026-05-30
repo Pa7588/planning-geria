@@ -46,6 +46,20 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
 .slot-name { font-weight:500; }
 .slot-comment { font-size:0.58rem; font-style:italic; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .slot-poste { opacity:0.75; font-size:0.56rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.custom-panel { display:none; position:fixed; top:0; right:0; bottom:0; width:300px; background:var(--surface); border-left:1px solid var(--border); z-index:100; overflow-y:auto; padding:24px; box-shadow:-8px 0 32px rgba(0,0,0,0.4); }
+.custom-panel.open { display:block; }
+.panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.panel-header h3 { font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; }
+.panel-close { background:none; border:none; color:var(--text-dim); font-size:1.2rem; cursor:pointer; padding:4px 8px; border-radius:4px; }
+.panel-close:hover { color:var(--text); background:var(--border); }
+.panel-actions { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+.panel-action-btn { font-family:'DM Mono',monospace; font-size:0.65rem; padding:4px 10px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--text-dim); cursor:pointer; }
+.panel-action-btn:hover { color:var(--text); border-color:var(--accent); }
+.cb-label { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:0.75rem; color:var(--text); transition:background 0.1s; }
+.cb-label:hover { background:var(--border); }
+.cb-label input { accent-color:var(--accent); width:14px; height:14px; cursor:pointer; flex-shrink:0; }
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:99; }
+.overlay.open { display:block; }
 @media (max-width:900px) {
   .header,.legende,.tabs,.content { padding-left:16px; padding-right:16px; }
   .header h1 { font-size:1.4rem; }
@@ -53,15 +67,29 @@ body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text);
   .day-cell { padding:3px; min-height:90px; }
   .slot { font-size:0.55rem; }
   .slot-poste { display:none; }
+  .custom-panel { width:100%; }
 }
 </style>
 </head>
 <body>
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="custom-panel" id="customPanel">
+  <div class="panel-header">
+    <h3>Sélection</h3>
+    <button class="panel-close" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-actions">
+    <button class="panel-action-btn" onclick="selectAll()">Tout cocher</button>
+    <button class="panel-action-btn" onclick="selectNone()">Tout décocher</button>
+  </div>
+  <div id="cbsList"><label class="cb-label" for="cb_M__Lejay"><input type="checkbox" id="cb_M__Lejay" data-nom="M. Lejay" checked onchange="applyCustom()"><span>M. Lejay</span></label><label class="cb-label" for="cb_E__Malavelle"><input type="checkbox" id="cb_E__Malavelle" data-nom="E. Malavelle" checked onchange="applyCustom()"><span>E. Malavelle</span></label><label class="cb-label" for="cb_S__Potin"><input type="checkbox" id="cb_S__Potin" data-nom="S. Potin" checked onchange="applyCustom()"><span>S. Potin</span></label><label class="cb-label" for="cb_H__Pommiers"><input type="checkbox" id="cb_H__Pommiers" data-nom="H. Pommiers" checked onchange="applyCustom()"><span>H. Pommiers</span></label><label class="cb-label" for="cb_Q__Joussain"><input type="checkbox" id="cb_Q__Joussain" data-nom="Q. Joussain" checked onchange="applyCustom()"><span>Q. Joussain</span></label><label class="cb-label" for="cb_D__Leculier"><input type="checkbox" id="cb_D__Leculier" data-nom="D. Leculier" checked onchange="applyCustom()"><span>D. Leculier</span></label><label class="cb-label" for="cb_J__Astrongatt"><input type="checkbox" id="cb_J__Astrongatt" data-nom="J. Astrongatt" checked onchange="applyCustom()"><span>J. Astrongatt</span></label><label class="cb-label" for="cb_C__Cazenave"><input type="checkbox" id="cb_C__Cazenave" data-nom="C. Cazenave" checked onchange="applyCustom()"><span>C. Cazenave</span></label><label class="cb-label" for="cb_I__De_Boisset"><input type="checkbox" id="cb_I__De_Boisset" data-nom="I. De Boisset" checked onchange="applyCustom()"><span>I. De Boisset</span></label><label class="cb-label" for="cb_L__Touya"><input type="checkbox" id="cb_L__Touya" data-nom="L. Touya" checked onchange="applyCustom()"><span>L. Touya</span></label><label class="cb-label" for="cb_C__Destremau"><input type="checkbox" id="cb_C__Destremau" data-nom="C. Destremau" checked onchange="applyCustom()"><span>C. Destremau</span></label><label class="cb-label" for="cb_A__Kadhel"><input type="checkbox" id="cb_A__Kadhel" data-nom="A. Kadhel" checked onchange="applyCustom()"><span>A. Kadhel</span></label><label class="cb-label" for="cb_L__Boureaux"><input type="checkbox" id="cb_L__Boureaux" data-nom="L. Boureaux" checked onchange="applyCustom()"><span>L. Boureaux</span></label><label class="cb-label" for="cb_J__Silo"><input type="checkbox" id="cb_J__Silo" data-nom="J. Silo" checked onchange="applyCustom()"><span>J. Silo</span></label><label class="cb-label" for="cb_M__Carriou"><input type="checkbox" id="cb_M__Carriou" data-nom="M. Carriou" checked onchange="applyCustom()"><span>M. Carriou</span></label><label class="cb-label" for="cb_V__Bannholtzer"><input type="checkbox" id="cb_V__Bannholtzer" data-nom="V. Bannholtzer" checked onchange="applyCustom()"><span>V. Bannholtzer</span></label><label class="cb-label" for="cb_I__Aithamoudi"><input type="checkbox" id="cb_I__Aithamoudi" data-nom="I. Aithamoudi" checked onchange="applyCustom()"><span>I. Aithamoudi</span></label><label class="cb-label" for="cb_P__Lorette"><input type="checkbox" id="cb_P__Lorette" data-nom="P. Lorette" checked onchange="applyCustom()"><span>P. Lorette</span></label><label class="cb-label" for="cb_E__Renucci"><input type="checkbox" id="cb_E__Renucci" data-nom="E. Renucci" checked onchange="applyCustom()"><span>E. Renucci</span></label><label class="cb-label" for="cb_E__Nicolas"><input type="checkbox" id="cb_E__Nicolas" data-nom="E. Nicolas" checked onchange="applyCustom()"><span>E. Nicolas</span></label><label class="cb-label" for="cb_B__Guyot"><input type="checkbox" id="cb_B__Guyot" data-nom="B. Guyot" checked onchange="applyCustom()"><span>B. Guyot</span></label><label class="cb-label" for="cb_C__Petureau"><input type="checkbox" id="cb_C__Petureau" data-nom="C. Petureau" checked onchange="applyCustom()"><span>C. Petureau</span></label><label class="cb-label" for="cb_Y__Esteves"><input type="checkbox" id="cb_Y__Esteves" data-nom="Y. Esteves" checked onchange="applyCustom()"><span>Y. Esteves</span></label><label class="cb-label" for="cb_I__Taha"><input type="checkbox" id="cb_I__Taha" data-nom="I. Taha" checked onchange="applyCustom()"><span>I. Taha</span></label><label class="cb-label" for="cb_G__Gillodes"><input type="checkbox" id="cb_G__Gillodes" data-nom="G. Gillodes" checked onchange="applyCustom()"><span>G. Gillodes</span></label><label class="cb-label" for="cb_M__Belhomme_De_Franqueville"><input type="checkbox" id="cb_M__Belhomme_De_Franqueville" data-nom="M. Belhomme De Franqueville" checked onchange="applyCustom()"><span>M. Belhomme De Franqueville</span></label><label class="cb-label" for="cb_E__Salgues"><input type="checkbox" id="cb_E__Salgues" data-nom="E. Salgues" checked onchange="applyCustom()"><span>E. Salgues</span></label><label class="cb-label" for="cb_E__Villedieu"><input type="checkbox" id="cb_E__Villedieu" data-nom="E. Villedieu" checked onchange="applyCustom()"><span>E. Villedieu</span></label><label class="cb-label" for="cb_S__Kassou"><input type="checkbox" id="cb_S__Kassou" data-nom="S. Kassou" checked onchange="applyCustom()"><span>S. Kassou</span></label><label class="cb-label" for="cb_R__Pettes"><input type="checkbox" id="cb_R__Pettes" data-nom="R. Pettes" checked onchange="applyCustom()"><span>R. Pettes</span></label><label class="cb-label" for="cb_A__Kielholz"><input type="checkbox" id="cb_A__Kielholz" data-nom="A. Kielholz" checked onchange="applyCustom()"><span>A. Kielholz</span></label><label class="cb-label" for="cb_J__Peyres"><input type="checkbox" id="cb_J__Peyres" data-nom="J. Peyres" checked onchange="applyCustom()"><span>J. Peyres</span></label><label class="cb-label" for="cb_M__Gratesac"><input type="checkbox" id="cb_M__Gratesac" data-nom="M. Gratesac" checked onchange="applyCustom()"><span>M. Gratesac</span></label><label class="cb-label" for="cb_C__Gorra"><input type="checkbox" id="cb_C__Gorra" data-nom="C. Gorra" checked onchange="applyCustom()"><span>C. Gorra</span></label><label class="cb-label" for="cb_C__Vasseur"><input type="checkbox" id="cb_C__Vasseur" data-nom="C. Vasseur" checked onchange="applyCustom()"><span>C. Vasseur</span></label><label class="cb-label" for="cb_T__Bourot"><input type="checkbox" id="cb_T__Bourot" data-nom="T. Bourot" checked onchange="applyCustom()"><span>T. Bourot</span></label><label class="cb-label" for="cb_V__Simionesco"><input type="checkbox" id="cb_V__Simionesco" data-nom="V. Simionesco" checked onchange="applyCustom()"><span>V. Simionesco</span></label><label class="cb-label" for="cb_S__Jaouen"><input type="checkbox" id="cb_S__Jaouen" data-nom="S. Jaouen" checked onchange="applyCustom()"><span>S. Jaouen</span></label><label class="cb-label" for="cb_C__Vert"><input type="checkbox" id="cb_C__Vert" data-nom="C. Vert" checked onchange="applyCustom()"><span>C. Vert</span></label><label class="cb-label" for="cb_C__Chauvin"><input type="checkbox" id="cb_C__Chauvin" data-nom="C. Chauvin" checked onchange="applyCustom()"><span>C. Chauvin</span></label><label class="cb-label" for="cb_M__Bousquet"><input type="checkbox" id="cb_M__Bousquet" data-nom="M. Bousquet" checked onchange="applyCustom()"><span>M. Bousquet</span></label><label class="cb-label" for="cb_M__Ajlani"><input type="checkbox" id="cb_M__Ajlani" data-nom="M. Ajlani" checked onchange="applyCustom()"><span>M. Ajlani</span></label><label class="cb-label" for="cb_P__Chretien"><input type="checkbox" id="cb_P__Chretien" data-nom="P. Chretien" checked onchange="applyCustom()"><span>P. Chretien</span></label><label class="cb-label" for="cb_P__Messina"><input type="checkbox" id="cb_P__Messina" data-nom="P. Messina" checked onchange="applyCustom()"><span>P. Messina</span></label></div>
+</div>
 <div class="header">
   <h1>Planning Gériatrie</h1>
   <div class="header-right">
     <button class="toggle-btn" id="btnFilter" onclick="toggleFilter()">💬 Avec commentaire</button>
-    <div class="maj-badge">⟳ Mis à jour le 30/05/2026 a 23:47</div>
+    <button class="toggle-btn" onclick="openPanel()">✎ Personnalisé</button>
+    <div class="maj-badge">⟳ Mis à jour le 30/05/2026 a 23:51</div>
   </div>
 </div>
 <div class="legende"><span class="leg-item" style="color:#1a6b3a;background:#d4edda;">Libre</span><span class="leg-item" style="color:#7f1d1d;background:#fee2e2;">Garde dim/JF (24h)</span><span class="leg-item" style="color:#78350f;background:#fef3c7;">Garde sam (13h-8h30)</span><span class="leg-item" style="color:#78350f;background:#fef9e7;">Repos de garde</span><span class="leg-item" style="color:#7c2d12;background:#ffedd5;">Stage + garde soir</span></div>
@@ -200,6 +228,40 @@ function showMonth(m) {
   if (btn) btn.classList.add('active');
   localStorage.setItem('planning_mois', m);
 }
+
+const CIBLES_ALL = ["M. Lejay", "E. Malavelle", "S. Potin", "H. Pommiers", "Q. Joussain", "D. Leculier", "J. Astrongatt", "C. Cazenave", "I. De Boisset", "L. Touya", "C. Destremau", "A. Kadhel", "L. Boureaux", "J. Silo", "M. Carriou", "V. Bannholtzer", "I. Aithamoudi", "P. Lorette", "E. Renucci", "E. Nicolas", "B. Guyot", "C. Petureau", "Y. Esteves", "I. Taha", "G. Gillodes", "M. Belhomme De Franqueville", "E. Salgues", "E. Villedieu", "S. Kassou", "R. Pettes", "A. Kielholz", "J. Peyres", "M. Gratesac", "C. Gorra", "C. Vasseur", "T. Bourot", "V. Simionesco", "S. Jaouen", "C. Vert", "C. Chauvin", "M. Bousquet", "M. Ajlani", "P. Chretien", "P. Messina"];
+let customSet = new Set(JSON.parse(localStorage.getItem('planning_custom') || 'null') || CIBLES_ALL);
+
+function applyVisibility(visibleSet) {
+  document.querySelectorAll('.slot').forEach(s => {
+    s.classList.toggle('hidden', !visibleSet.has(s.dataset.nom));
+  });
+}
+
+function applyCustom() {
+  customSet = new Set(
+    [...document.querySelectorAll('#cbsList input[type=checkbox]')]
+      .filter(cb => cb.checked).map(cb => cb.dataset.nom)
+  );
+  localStorage.setItem('planning_custom', JSON.stringify([...customSet]));
+  applyVisibility(customSet);
+}
+
+function openPanel() {
+  document.querySelectorAll('#cbsList input').forEach(cb => {
+    cb.checked = customSet.has(cb.dataset.nom);
+  });
+  document.getElementById('customPanel').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('customPanel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function selectAll()  { document.querySelectorAll('#cbsList input').forEach(cb => cb.checked=true);  applyCustom(); }
+function selectNone() { document.querySelectorAll('#cbsList input').forEach(cb => cb.checked=false); applyCustom(); }
 
 const savedMois = localStorage.getItem('planning_mois');
 showMonth(savedMois || 'Mai');
